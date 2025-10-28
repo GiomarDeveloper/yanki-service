@@ -1,0 +1,413 @@
+openapi: 3.0.3
+info:
+  title: Yanki Service API
+  version: 1.0.0
+  description: API para gestionar monederos móviles Yanki
+  contact:
+    name: Giomar Limo
+  license:
+    name: Apache 2.0
+servers:
+  - url: http://localhost:8085/bank/v1
+tags:
+  - name: yanki-api
+    description: Operations related to Yanki mobile wallets
+
+paths:
+  /wallets:
+    post:
+      tags:
+        - yanki-api
+      summary: Create Yanki wallet
+      operationId: createWallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/YankiWalletRequest'
+        description: Wallet data to create
+      responses:
+        '201':
+          description: Wallet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YankiWalletResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /wallets/by-phone/{phoneNumber}:
+    get:
+      tags:
+        - yanki-api
+      summary: Get wallet by phone number
+      operationId: getWalletByPhone
+      parameters:
+        - name: phoneNumber
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Phone number
+          example: "+51987654321"
+      responses:
+        '200':
+          description: Wallet found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YankiWalletResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /wallets/send:
+    post:
+      tags:
+        - yanki-api
+      summary: Send payment to another wallet
+      operationId: sendPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendPaymentRequest'
+        description: Payment data
+      responses:
+        '200':
+          description: Payment sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /wallets/associate:
+    post:
+      tags:
+        - yanki-api
+      summary: Associate credit card to wallet
+      operationId: associateCard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardAssociationRequest'
+        description: Card association data
+      responses:
+        '200':
+          description: Card associated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardAssociationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    YankiWalletRequest:
+      type: object
+      required:
+        - documentType
+        - documentNumber
+        - phoneNumber
+        - imei
+      properties:
+        documentType:
+          $ref: '#/components/schemas/DocumentTypeEnum'
+        documentNumber:
+          type: string
+          description: Document number
+          example: "12345678"
+          minLength: 3
+          maxLength: 20
+        phoneNumber:
+          type: string
+          description: Phone number (for sending/receiving payments)
+          example: "+51987654321"
+          minLength: 9
+          maxLength: 15
+        imei:
+          type: string
+          description: IMEI of the mobile device
+          example: "490154203237518"
+          minLength: 15
+          maxLength: 15
+        email:
+          type: string
+          description: Email address
+          format: email
+          example: "usuario@gmail.com"
+          maxLength: 100
+        balance:
+          type: number
+          format: double
+          description: Initial balance (optional, defaults to 100000)
+          example: 100000
+          minimum: 0
+
+    YankiWalletResponse:
+      type: object
+      description: Yanki wallet response data
+      properties:
+        id:
+          type: string
+          description: Unique identifier
+          example: "507f1f77bcf86cd799439011"
+        documentType:
+          $ref: '#/components/schemas/DocumentTypeEnum'
+        documentNumber:
+          type: string
+          description: Document number
+          example: "12345678"
+        phoneNumber:
+          type: string
+          description: Phone number
+          example: "+51987654321"
+        imei:
+          type: string
+          description: IMEI of the mobile device
+          example: "490154203237518"
+        email:
+          type: string
+          description: Email address
+          example: "usuario@gmail.com"
+        balance:
+          type: number
+          format: double
+          description: Current wallet balance
+          example: 1000.50
+        associatedCreditId:
+          type: string
+          description: Associated credit card ID
+          example: "credit_123456789"
+        status:
+          $ref: '#/components/schemas/WalletStatusEnum'
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-10-26T10:30:00Z"
+
+    SendPaymentRequest:
+      type: object
+      required:
+        - fromPhoneNumber
+        - toPhoneNumber
+        - amount
+      properties:
+        fromPhoneNumber:
+          type: string
+          description: Sender's phone number
+          example: "+51987654321"
+        toPhoneNumber:
+          type: string
+          description: Receiver's phone number
+          example: "+51987654322"
+        amount:
+          type: number
+          format: double
+          description: Amount to send
+          minimum: 0.01
+          example: 100.50
+        description:
+          type: string
+          description: Transaction description
+          example: "Payment for services"
+          maxLength: 255
+
+    CardAssociationRequest:
+      type: object
+      required:
+        - phoneNumber
+        - creditId
+      properties:
+        phoneNumber:
+          type: string
+          description: Wallet phone number
+          example: "+51987654321"
+        creditId:
+          type: string
+          description: Credit card identifier
+          example: "credit_123456789"
+          minLength: 5
+          maxLength: 50
+
+    CardAssociationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Association ID
+          example: "507f1f77bcf86cd799439012"
+        walletId:
+          type: string
+          description: Wallet ID
+          example: "507f1f77bcf86cd799439011"
+        creditId:
+          type: string
+          description: Credit card identifier
+          example: "credit_123456789"
+        status:
+          $ref: '#/components/schemas/CardAssociationStatusEnum'
+        associatedAt:
+          type: string
+          format: date-time
+          description: Association timestamp
+          example: "2024-10-26T10:30:00Z"
+
+    TransactionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Transaction ID
+          example: "507f1f77bcf86cd799439013"
+        transactionType:
+          $ref: '#/components/schemas/TransactionTypeEnum'
+        amount:
+          type: number
+          format: double
+          description: Transaction amount
+          example: 100.50
+        fromWalletId:
+          type: string
+          description: Sender wallet ID
+          example: "507f1f77bcf86cd799439011"
+        toWalletId:
+          type: string
+          description: Receiver wallet ID
+          example: "507f1f77bcf86cd799439012"
+        fromPhoneNumber:
+          type: string
+          description: Sender phone number
+          example: "+51987654321"
+        toPhoneNumber:
+          type: string
+          description: Receiver phone number
+          example: "+51987654322"
+        description:
+          type: string
+          description: Transaction description
+          example: "Payment for services"
+        status:
+          $ref: '#/components/schemas/TransactionStatusEnum'
+        transactionDate:
+          type: string
+          format: date-time
+          description: Transaction timestamp
+          example: "2024-10-26T10:30:00Z"
+
+    ErrorResponse:
+      type: object
+      description: Standard API error response
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2024-10-26T10:30:00Z"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: Error type
+          example: "Bad Request"
+        message:
+          type: string
+          description: Error message
+          example: "Error de validación en los campos"
+        path:
+          type: string
+          description: Request path
+          example: "/bank/v1/wallets"
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties:
+            type: string
+
+    # Enums
+    DocumentTypeEnum:
+      type: string
+      description: Tipo de documento de identificación
+      enum: [DNI, CEX, PASSPORT]
+      example: DNI
+
+    WalletStatusEnum:
+      type: string
+      description: Estado del monedero
+      enum: [ACTIVE, BLOCKED, PENDING_CARD_ASSOCIATION, SUSPENDED]
+      example: ACTIVE
+
+    TransactionTypeEnum:
+      type: string
+      description: Tipo de transacción
+      enum: [SEND, RECEIVE, LOAD, WITHDRAW]
+      example: SEND
+
+    TransactionStatusEnum:
+      type: string
+      description: Estado de la transacción
+      enum: [PENDING, COMPLETED, FAILED, CANCELLED]
+      example: COMPLETED
+
+    CardAssociationStatusEnum:
+      type: string
+      description: Estado de la asociación de tarjeta
+      enum: [PENDING, ACTIVE, REJECTED, EXPIRED]
+      example: ACTIVE
+
+  responses:
+    BadRequest:
+      description: Bad Request - Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Not Found - Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Conflict - Resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Unprocessable Entity - Business logic error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
