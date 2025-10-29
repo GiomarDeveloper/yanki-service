@@ -82,4 +82,38 @@ public class KafkaEventProducer {
                 )
                 .then();
     }
+
+    public Mono<Void> sendYankiBalanceValidation(YankiBalanceValidationEvent event) {
+        return kafkaTemplate.send("yanki-balance-validation-request", event.getValidationId(), event)
+                .doOnSuccess(result ->
+                        log.info("✅ Yanki balance validation sent - ValidationId: {}, Phone: {}, Amount: {}",
+                                event.getValidationId(), event.getPhoneNumber(), event.getRequiredAmount())
+                )
+                .doOnError(error ->
+                        log.error("❌ Failed to send Yanki balance validation: {}", error.getMessage())
+                )
+                .then();
+    }
+
+    public Mono<Void> sendYankiBalanceValidationResponse(YankiBalanceValidationResponse response) {
+        return kafkaTemplate.send("yanki-balance-validation-response", response.getValidationId(), response)
+                .doOnSuccess(result ->
+                        log.info("✅ Yanki balance validation response sent - ValidationId: {}, Sufficient: {}",
+                                response.getValidationId(), response.getSufficientBalance())
+                )
+                .doOnError(error ->
+                        log.error("❌ Failed to send Yanki balance validation response: {}", error.getMessage())
+                )
+                .then();
+    }
+
+    public Mono<Void> sendYankiPaymentResponse(YankiPaymentCompletedEvent response) {
+        return kafkaTemplate.send("yanki-payment-completed", response.getPaymentId(), response)
+                .doOnSuccess(result ->
+                        log.info("✅ Yanki payment response sent - PaymentId: {}, Success: {}",
+                                response.getPaymentId(), response.isSuccess()))
+                .doOnError(error ->
+                        log.error("❌ Failed to send Yanki payment response: {}", error.getMessage()))
+                .then();
+    }
 }
